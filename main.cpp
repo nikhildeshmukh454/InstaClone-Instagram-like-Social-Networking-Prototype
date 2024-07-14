@@ -1,192 +1,275 @@
-#include <iostream>
-#include <fstream>
-#include <unordered_map>
+#include<iostream>
+#include<string>
 #include <vector>
+#include <unordered_map>
+#include <stack>
 #include <queue>
-#include <bitset>
-#include <string>
-#include <sstream>
-
+#include <map>
+#include <algorithm>
 using namespace std;
 
-class BinaryTreeNode {
+unordered_map<string, vector<string>> UserData;
+unordered_map<string, bool> mailIds;
+unordered_map<string, bool> userIds;
+unordered_map<string, unordered_map<string, stack<string>>> messagesData;
+
+
+
+
+string generatePassword(int length = 8) {
+    const string upperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const string lowerCaseLetters = "abcdefghijklmnopqrstuvwxyz";
+    const string digits = "0123456789";
+    const string specialChars = "!@#$%^&*()-_=+[]{}|;:,.<>?";
+    
+    if (length < 8) {
+        length = 8; // Ensure the minimum length is 8
+    }
+
+    vector<char> password;
+
+    // Ensure at least one character from each category is included
+    password.push_back(upperCaseLetters[rand() % upperCaseLetters.size()]);
+    password.push_back(lowerCaseLetters[rand() % lowerCaseLetters.size()]);
+    password.push_back(digits[rand() % digits.size()]);
+    password.push_back(specialChars[rand() % specialChars.size()]);
+
+    // Fill the remaining length of the password with random characters from all categories
+    const string allChars = upperCaseLetters + lowerCaseLetters + digits + specialChars;
+    for (int i = 4; i < length; ++i) {
+        password.push_back(allChars[rand() % allChars.size()]);
+    }
+
+    // Shuffle the password to avoid a predictable pattern
+    random_shuffle(password.begin(), password.end());
+
+    return string(password.begin(), password.end());
+}
+
+
+
+bool validPassword(string& password)
+{
+    if (password.length() < 8) {
+        return false; // Password length should be at least 8 characters
+    }
+
+    bool hasUpperCase = false;
+    bool hasLowerCase = false;
+    bool hasDigit = false;
+    bool hasSpecialChar = false;
+
+    for (char ch : password) {
+        if (isupper(ch)) {
+            hasUpperCase = true;
+        } else if (islower(ch)) {
+            hasLowerCase = true;
+        } else if (isdigit(ch)) {
+            hasDigit = true;
+        } else if (ispunct(ch)) { // Check for special characters
+            hasSpecialChar = true;
+        }
+    }
+
+    // Check if all required conditions are met
+    return hasUpperCase && hasLowerCase && hasDigit && hasSpecialChar;
+}
+
+
+class Post {
 public:
-    char value;
-    int frequency;
-    BinaryTreeNode* left;
-    BinaryTreeNode* right;
+    string imgUrl;
+    string caption;
 
-    BinaryTreeNode(char value, int frequency) {
-        this->value = value;
-        this->frequency = frequency;
-        this->left = nullptr;
-        this->right = nullptr;
+    Post(string imgUrl, string caption = "") {
+        this->imgUrl = imgUrl;
+        this->caption = caption;
     }
 };
 
-struct Compare {
-    bool operator()(BinaryTreeNode* left, BinaryTreeNode* right) {
-        return left->frequency > right->frequency;
-    }
-};
 
-class HuffmanCode {
+
+class MyFeed {
 private:
-    unordered_map<char, string> codes;
-    unordered_map<string, char> reverseCodes;
-    BinaryTreeNode* root;
+    vector<Post> feed;
 
-    void buildFrequencyTable(const string& text, unordered_map<char, int>& frequency) {
-        for (char ch : text) {
-            frequency[ch]++;
+public:
+    void addToFeed(const Post& post) {
+        feed.push_back(post);
+    }
+
+    void viewMyFeed() {
+        cout << "My Feed:" << endl;
+        for (auto& post : feed) {
+            cout << post.imgUrl << " - " << post.caption << endl;
         }
     }
+};
 
-    void buildHeap(const unordered_map<char, int>& frequency, priority_queue<BinaryTreeNode*, vector<BinaryTreeNode*>, Compare>& minHeap) {
-        for (const auto& pair : frequency) {
-            minHeap.push(new BinaryTreeNode(pair.first, pair.second));
+class User {
+protected:
+    string mailId;
+    string password;
+
+public:
+    string userId;
+    string bio;
+    vector<string> posts;
+    vector<User*> following;
+    vector<User*> followers;
+    string  profilePicture ;
+
+    void createAccount(string mailId) {
+        while (mailIds[mailId]) {
+            cout << "This Mail Id Already Exists. Enter a new one: " << endl;
+            cin >> mailId;
         }
-    }
+        mailIds[mailId] = true;
 
-    void buildBinaryTree(priority_queue<BinaryTreeNode*, vector<BinaryTreeNode*>, Compare>& minHeap) {
-        while (minHeap.size() > 1) {
-            BinaryTreeNode* left = minHeap.top();
-            minHeap.pop();
-            BinaryTreeNode* right = minHeap.top();
-            minHeap.pop();
+      
+        cout << "Do you want an auto-generated password? (y/n): ";
+        char choice;
+        cin >> choice;
 
-            int sum = left->frequency + right->frequency;
-            BinaryTreeNode* newNode = new BinaryTreeNode('\0', sum);
-            newNode->left = left;
-            newNode->right = right;
-
-            minHeap.push(newNode);
-        }
-        root = minHeap.top();
-    }
-
-    void buildCodes(BinaryTreeNode* node, const string& str) {
-        if (!node) return;
-
-        if (node->value != '\0') {
-            codes[node->value] = str;
-            reverseCodes[str] = node->value;
-        }
-
-        buildCodes(node->left, str + "0");
-        buildCodes(node->right, str + "1");
-    }
-
-    string getEncodedText(const string& text) {
-        string encodedText;
-        for (char ch : text) {
-            encodedText += codes[ch];
-        }
-        return encodedText;
-    }
-
-    string getPaddedEncodedText(const string& encodedText) {
-        int extraPadding = 8 - (encodedText.size() % 8);
-        string paddingInfo = bitset<8>(extraPadding).to_string();
-        string paddedEncodedText = paddingInfo + encodedText;
-        for (int i = 0; i < extraPadding; ++i) {
-            paddedEncodedText += "0";
-        }
-        return paddedEncodedText;
-    }
-
-    vector<uint8_t> getByteArray(const string& paddedEncodedText) {
-        vector<uint8_t> byteArray;
-        for (size_t i = 0; i < paddedEncodedText.size(); i += 8) {
-            string byteString = paddedEncodedText.substr(i, 8);
-            uint8_t byte = bitset<8>(byteString).to_ulong();
-            byteArray.push_back(byte);
-        }
-        return byteArray;
-    }
-
-    string removePadding(const string& bitString) {
-        string paddingInfo = bitString.substr(0, 8);
-        int extraPadding = bitset<8>(paddingInfo).to_ulong();
-        return bitString.substr(8, bitString.size() - 8 - extraPadding);
-    }
-
-    string decodeText(const string& bitString) {
-        string decodedText;
-        string currentBits;
-        for (char bit : bitString) {
-            currentBits += bit;
-            if (reverseCodes.find(currentBits) != reverseCodes.end()) {
-                decodedText += reverseCodes[currentBits];
-                currentBits = "";
+        if (tolower(choice) == 'y') {
+            password = generatePassword();
+            cout << "Generated Password: " << password << endl;
+        } else {
+            cout << "Enter Your Password: " << endl;
+            cin >> password;
+            while (!validPassword(password)) {
+                cout << "Enter a Stronger Password: " << endl;
+                cin >> password;
             }
         }
-        return decodedText;
-    }
 
-public:
-    HuffmanCode() {
-        root = nullptr;
-    }
-
-    string compress(const string& inputPath) {
-        ifstream inputFile(inputPath, ios::in);
-        stringstream buffer;
-        buffer << inputFile.rdbuf();
-        string text = buffer.str();
-        inputFile.close();
-
-        unordered_map<char, int> frequency;
-        buildFrequencyTable(text, frequency);
-
-        priority_queue<BinaryTreeNode*, vector<BinaryTreeNode*>, Compare> minHeap;
-        buildHeap(frequency, minHeap);
-
-        buildBinaryTree(minHeap);
-        buildCodes(root, "");
-
-        string encodedText = getEncodedText(text);
-        string paddedEncodedText = getPaddedEncodedText(encodedText);
-        vector<uint8_t> byteArray = getByteArray(paddedEncodedText);
-
-        string outputPath = inputPath.substr(0, inputPath.find_last_of(".")) + ".bin";
-        ofstream outputFile(outputPath, ios::out | ios::binary);
-        for (uint8_t byte : byteArray) {
-            outputFile << byte;
+        
+        cout << "Enter User ID: " << endl;
+        string newUserId;
+        cin >> newUserId;
+        while (userIds[newUserId]) {
+            cout << "This User ID Already Exists. Enter a new one: " << endl;
+            cin >> newUserId;
         }
-        outputFile.close();
 
-        return outputPath;
+        userId = newUserId;
+        password = newPassword;
+        this->mailId = mailId;
+
+        UserData[userId] = { mailId, password, "" };
     }
 
-    void decompress(const string& inputPath) {
-        ifstream inputFile(inputPath, ios::in | ios::binary);
-        stringstream buffer;
-        buffer << inputFile.rdbuf();
-        string bitString;
-        for (char byte : buffer.str()) {
-            bitString += bitset<8>(byte).to_string();
+    void deleteAccount(string userId, string password) {
+        string mail;
+        cout << "Enter Your Mail Id: " << endl;
+        cin >> mail;
+        if (UserData[userId][0] == mail && UserData[userId][1] == password) {
+            UserData.erase(userId);
+        } else {
+            cout << "Incorrect password or mail id" << endl;
         }
-        inputFile.close();
-
-        string actualText = removePadding(bitString);
-        string decodedText = decodeText(actualText);
-
-        string outputPath = inputPath.substr(0, inputPath.find_last_of(".")) + "_decompressed.txt";
-        ofstream outputFile(outputPath, ios::out);
-        outputFile << decodedText;
-        outputFile.close();
     }
+
+    void follow(User* userToFollow) {
+        following.push_back(userToFollow);
+        userToFollow->followers.push_back(this);
+    }
+
+    void unfollow(User* userToUnfollow) {
+        following.erase(remove(following.begin(), following.end(), userToUnfollow), following.end());
+        userToUnfollow->followers.erase(remove(userToUnfollow->followers.begin(), userToUnfollow->followers.end(), this), userToUnfollow->followers.end());
+    }
+
+    void showMyFollowing() {
+        cout << "Following: ";
+        for (auto& user : following) {
+            cout << user->userId << " ";
+        }
+        cout << endl;
+    }
+
+    void showMyFollowers() {
+        cout << "Followers: ";
+        for (auto& user : followers) {
+            cout << user->userId << " ";
+        }
+        cout << endl;
+    }
+
+    void sendMessage(string message, User& receiver) {
+        messagesData[userId][receiver.userId].push(message);
+        messagesData[receiver.userId][userId].push(message);
+    }
+
+    void postPhoto(string imgUrl, string caption = "") {
+        posts.push_back(imgUrl);
+
+        // Add this post to all followers' feeds
+        for (auto& follower : followers) {
+            follower->addToFeed(Post(imgUrl, caption));
+        }
+    }
+
+    void addToFeed(const Post& post) {
+        // To be implemented in MyFeed class
+    }
+
+     void editProfile(string newBio, string newProfilePicture) {
+        bio = newBio;
+        profilePicture = newProfilePicture;
+        cout << "Profile updated successfully." << endl;
+    }
+
+
+
+    void showPreviousChats(string friendUserId, int n = -1) {
+    if (messagesData[userId].find(friendUserId) == messagesData[userId].end()) {
+        cout << "No previous chats with this user." << endl;
+        return;
+    }
+
+    stack<string>& chatStack = messagesData[userId][friendUserId];
+
+    if (n == -1 || n > chatStack.size()) {
+        n = chatStack.size();
+    }
+
+    vector<string> messages;
+    for (int i = 0; i < n; ++i) {
+        messages.push_back(chatStack.top());
+        chatStack.pop();
+    }
+
+    // Print messages in reverse order to maintain original sequence
+    for (auto it = messages.rbegin(); it != messages.rend(); ++it) {
+        cout << *it << endl;
+    }
+
+    // Push messages back to the stack
+    for (const auto& message : messages) {
+        chatStack.push(message);
+    }
+}
+
+
 };
 
-int main() {
-    string path;
-    cout << "ENTER THE PATH OF YOUR FILE: ";
-    cin >> path;
-
-    HuffmanCode huffman;
-    string outputPath = huffman.compress(path);
-    huffman.decompress(outputPath);
-
-    return 0;
-}
+class Friend : public User {
+public:
+    void viewFriendDetails(User& friendUser) {
+        // Check if the current user is following friendUser
+        auto it = find(friendUser.followers.begin(), friendUser.followers.end(), this);
+        if (it != friendUser.followers.end()) {
+            cout << "UserID: " << friendUser.userId << endl;
+            cout << "Bio: " << friendUser.bio << endl;
+            cout << "Posts: " << endl;
+            for (const auto& post : friendUser.posts) {
+                cout << post << endl;
+            }
+            cout << "Following: " << friendUser.following.size() << endl;
+            cout << "Followers: " << friendUser.followers.size() << endl;
+        } else {
+            cout << "You are not following this user." << endl;
+        }
+    }
+};
